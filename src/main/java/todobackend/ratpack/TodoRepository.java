@@ -76,9 +76,9 @@ public class TodoRepository {
       .filter(Objects::nonNull)
       .forEach(f -> fields.put(f.field, f.value));
 
-    UpdateResultStep<TodoRecord> update = context.update(TODO)
+    UpdateConditionStep<TodoRecord> update = context.update(TODO)
       .set(fields)
-      .where(TODO.ID.eq(id)).returning();
+      .where(TODO.ID.eq(id));
 
     return Blocking.get(update::execute).flatMap(i -> getById(id));
   }
