@@ -10,7 +10,7 @@ public class TodoApp {
   public static void main(String[] args) throws Exception {
     RatpackServer.start(ratpackServerSpec -> ratpackServerSpec
       .serverConfig(serverConfigBuilder -> serverConfigBuilder
-        .baseDir(BaseDir.find(""))
+        .baseDir(BaseDir.find())
         .yaml("db.yaml")
         .env()
         .sysProps()
