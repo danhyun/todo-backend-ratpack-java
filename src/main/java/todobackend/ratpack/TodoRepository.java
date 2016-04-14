@@ -43,8 +43,8 @@ public class TodoRepository {
     TodoRecord todoRecord = context.newRecord(TODO, todo);
     return Blocking.get(() -> {
       todoRecord.store();
-      return todo.id(todoRecord.getId());
-    });
+      return todoRecord.getId();
+    }).flatMap(this::getById);
   }
 
   class FieldEntry {

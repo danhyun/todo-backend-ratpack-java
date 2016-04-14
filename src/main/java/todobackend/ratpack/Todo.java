@@ -26,10 +26,6 @@ public class Todo {
     this.baseUrl = baseUrl;
   }
 
-  public Todo id(Long id) {
-    return new Todo(id, title, completed, order, baseUrl);
-  }
-
   public Todo baseUrl(String baseUrl) {
     return new Todo(id, title, completed, order, baseUrl);
   }
