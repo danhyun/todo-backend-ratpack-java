@@ -1,0 +1,75 @@
+buildscript {
+  repositories {
+    jcenter()
+  }
+  dependencies {
+    classpath 'com.h2database:h2:1.4.186'
+    classpath 'org.jooq:jooq-codegen:3.7.3'
+  }
+}
+
+plugins {
+  id 'io.ratpack.ratpack-java' version '1.2.0'
+  id 'com.github.johnrengelman.shadow' version '1.2.3'
+  id 'idea'
+}
+
+repositories {
+  jcenter()
+}
+
+mainClassName = 'todobackend.ratpack.TodoApp'
+
+task stage(dependsOn: installShadowApp)
+
+dependencies {
+  compile ratpack.dependency('h2')
+  compile ratpack.dependency('hikari')
+  compile 'org.jooq:jooq:3.7.3'
+
+  runtime 'org.apache.logging.log4j:log4j-slf4j-impl:2.2'
+  runtime 'org.apache.logging.log4j:log4j-api:2.2'
+  runtime 'org.apache.logging.log4j:log4j-core:2.2'
+  runtime 'com.lmax:disruptor:3.3.0'
+
+  testCompile 'org.spockframework:spock-core:1.0-groovy-2.4', {
+    exclude module: 'groovy-all'
+  }
+}
+
+idea.project {
+  jdkName '1.8'
+  languageLevel '1.8'
+  vcs 'Git'
+}
+
+import org.jooq.util.jaxb.*
+import org.jooq.util.*
+
+task jooqCodegen {
+  doLast {
+    Configuration configuration = new Configuration()
+      .withJdbc(new Jdbc()
+      .withDriver("org.h2.Driver")
+      .withUrl("jdbc:h2:~/todo")
+//      .withUser("sa")
+//      .withPassword("")
+    )
+      .withGenerator(new Generator()
+//        .withGenerate(new Generate()
+//          .withImmutablePojos(true)
+//          .withDaos(true)
+//          .withFluentSetters(true))
+      .withDatabase(new Database()
+      .withName("org.jooq.util.h2.H2Database")
+      .withIncludes(".*")
+      .withExcludes("")
+      .withInputSchema("PUBLIC")
+    )
+      .withTarget(new Target()
+      .withPackageName("jooq")
+      .withDirectory("src/main/java")))
+
+    GenerationTool.generate(configuration)
+  }
+}
