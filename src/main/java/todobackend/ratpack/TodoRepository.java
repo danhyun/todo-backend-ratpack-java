@@ -1,5 +1,6 @@
 package todobackend.ratpack;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import jooq.tables.records.TodoRecord;
 import org.jooq.*;
@@ -23,10 +24,19 @@ import static jooq.tables.Todo.TODO;
 public class TodoRepository {
 
   final DSLContext context;
+  final Map<String, Field<?>> fields;
 
   @Inject
   public TodoRepository(DataSource ds) {
     this.context = DSL.using(new DefaultConfiguration().derive(ds));
+
+    ImmutableMap.Builder<String, Field<?>> builder = ImmutableMap.builder();
+    Stream.of(TODO.fields())
+      .forEach(f ->
+        builder.put(f.getName().toLowerCase(), f)
+      );
+
+    this.fields = builder.build();
   }
 
   public Promise<List<Todo>> getAll() {
@@ -41,10 +51,9 @@ public class TodoRepository {
 
   public Promise<Todo> add(Todo todo) {
     TodoRecord todoRecord = context.newRecord(TODO, todo);
-    return Blocking.get(() -> {
-      todoRecord.store();
-      return todoRecord.getId();
-    }).flatMap(this::getById);
+    return Blocking.get(todoRecord::store)
+      .wiretap(t -> todoRecord.refresh())
+      .map(i -> todoRecord.into(Todo.class));
   }
 
   class FieldEntry {
@@ -60,17 +69,13 @@ public class TodoRepository {
   }
 
   private FieldEntry getField(Map.Entry<String, Object> entry) {
-    return Stream.of(TODO.fields())
-      .filter(f -> f.getName().equalsIgnoreCase(entry.getKey()))
-      .findAny()
-      .map(f ->
-        new FieldEntry(f, entry.getKey(), entry.getValue())
-      ).orElse(null);
+    Field field = fields.get(entry.getKey().toLowerCase());
+    return field == null ? null : new FieldEntry(field, entry.getKey(), entry.getValue());
   }
 
   public Promise<Todo> update(Long id, Map<String, Object> map) {
 
-    Map<Field<Object>, Object> fields = Maps.newHashMap();
+    Map<Field<?>, Object> fields = Maps.newHashMap();
     map.entrySet().stream()
       .map(this::getField)
       .filter(Objects::nonNull)
