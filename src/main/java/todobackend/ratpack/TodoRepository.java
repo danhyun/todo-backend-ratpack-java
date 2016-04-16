@@ -16,6 +16,7 @@ import javax.sql.DataSource;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static jooq.tables.Todo.TODO;
@@ -30,8 +31,11 @@ public class TodoRepository {
   public TodoRepository(DataSource ds) {
     this.context = DSL.using(new DefaultConfiguration().derive(ds));
 
+    Predicate<Field<?>> isId = f -> f.getName().toLowerCase().equals("id");
+    Predicate<Field<?>> isNotId = isId.negate();
+
     ImmutableMap.Builder<String, Field<?>> builder = ImmutableMap.builder();
-    Stream.of(TODO.fields())
+    Stream.of(TODO.fields()).filter(isNotId)
       .forEach(f ->
         builder.put(f.getName().toLowerCase(), f)
       );
@@ -51,9 +55,9 @@ public class TodoRepository {
 
   public Promise<Todo> add(Todo todo) {
     TodoRecord todoRecord = context.newRecord(TODO, todo);
-    return Blocking.get(todoRecord::store)
+    return Operation.of(todoRecord::store)
       .wiretap(t -> todoRecord.refresh())
-      .map(i -> todoRecord.into(Todo.class));
+      .map(() -> todoRecord.into(Todo.class));
   }
 
   class FieldEntry {
@@ -74,7 +78,6 @@ public class TodoRepository {
   }
 
   public Promise<Todo> update(Long id, Map<String, Object> map) {
-
     Map<Field<?>, Object> fields = Maps.newHashMap();
     map.entrySet().stream()
       .map(this::getField)
