@@ -24,6 +24,7 @@ task stage(dependsOn: installShadowApp)
 
 dependencies {
   compile ratpack.dependency('hikari')
+  compile 'com.h2database:h2:1.4.186'
   compile 'org.jooq:jooq:3.8.1'
 
   runtime 'org.apache.logging.log4j:log4j-slf4j-impl:2.2'
