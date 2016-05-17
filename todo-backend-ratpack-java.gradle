@@ -4,12 +4,12 @@ buildscript {
   }
   dependencies {
     classpath 'com.h2database:h2:1.4.186'
-    classpath 'org.jooq:jooq-codegen:3.7.3'
+    classpath 'org.jooq:jooq-codegen:3.8.1'
   }
 }
 
 plugins {
-  id 'io.ratpack.ratpack-java' version '1.2.0'
+  id 'io.ratpack.ratpack-java' version '1.3.3'
   id 'com.github.johnrengelman.shadow' version '1.2.3'
   id 'idea'
 }
@@ -23,15 +23,15 @@ mainClassName = 'todobackend.ratpack.TodoApp'
 task stage(dependsOn: installShadowApp)
 
 dependencies {
-  compile ratpack.dependency('h2')
   compile ratpack.dependency('hikari')
-  compile 'org.jooq:jooq:3.7.3'
+  compile 'org.jooq:jooq:3.8.1'
 
   runtime 'org.apache.logging.log4j:log4j-slf4j-impl:2.2'
   runtime 'org.apache.logging.log4j:log4j-api:2.2'
   runtime 'org.apache.logging.log4j:log4j-core:2.2'
   runtime 'com.lmax:disruptor:3.3.0'
 
+  testCompile ratpack.dependency('groovy-test')
   testCompile 'org.spockframework:spock-core:1.0-groovy-2.4', {
     exclude module: 'groovy-all'
   }
@@ -45,21 +45,15 @@ idea.project {
 
 import org.jooq.util.jaxb.*
 import org.jooq.util.*
-
 task jooqCodegen {
   doLast {
+    String init = "$projectDir/src/main/resources/create.sql".replaceAll('\\\\', '/')
     Configuration configuration = new Configuration()
       .withJdbc(new Jdbc()
       .withDriver("org.h2.Driver")
-      .withUrl("jdbc:h2:~/todo")
-//      .withUser("sa")
-//      .withPassword("")
+      .withUrl("jdbc:h2:mem:todo;INIT=RUNSCRIPT FROM '$init'")
     )
       .withGenerator(new Generator()
-//        .withGenerate(new Generate()
-//          .withImmutablePojos(true)
-//          .withDaos(true)
-//          .withFluentSetters(true))
       .withDatabase(new Database()
       .withName("org.jooq.util.h2.H2Database")
       .withIncludes(".*")
@@ -67,9 +61,8 @@ task jooqCodegen {
       .withInputSchema("PUBLIC")
     )
       .withTarget(new Target()
-      .withPackageName("jooq")
-      .withDirectory("src/main/java")))
-
+      .withDirectory("src/main/java")
+      .withPackageName("jooq")))
     GenerationTool.generate(configuration)
   }
 }
