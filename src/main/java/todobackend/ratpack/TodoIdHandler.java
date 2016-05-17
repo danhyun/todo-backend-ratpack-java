@@ -1,5 +1,6 @@
 package todobackend.ratpack;
 
+import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 import ratpack.func.Function;
 import ratpack.handling.Context;
@@ -26,9 +27,14 @@ public class TodoIdHandler extends InjectionHandler {
       })
       .get(() -> repo.getById(todoId).map(toJson).then(ctx::render))
       .patch(() -> ctx
-        .parse(Jackson.fromJson(new TypeToken<Map<String, Object>>() {
-        }))
-        .flatMap(m -> repo.update(todoId, m))
+        .parse(Jackson.fromJson(new TypeToken<Map<String, Object>>() {}))
+        .map(map -> {
+          Map<String, Object> m = Maps.newHashMap();
+          map.keySet().forEach(key -> m.put(key.toUpperCase(), map.get(key)));
+          m.put("ID", todoId);
+          return m;
+        })
+        .flatMap(repo::update)
         .map(t -> t.baseUrl(base))
         .map(toJson)
         .then(ctx::render)

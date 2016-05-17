@@ -1,7 +1,5 @@
 package todobackend.ratpack;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import jooq.tables.records.TodoRecord;
 import org.jooq.*;
 import org.jooq.impl.DSL;
@@ -15,9 +13,6 @@ import javax.inject.Singleton;
 import javax.sql.DataSource;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
 
 import static jooq.tables.Todo.TODO;
 
@@ -25,22 +20,10 @@ import static jooq.tables.Todo.TODO;
 public class TodoRepository {
 
   final DSLContext context;
-  final Map<String, Field<?>> fields;
 
   @Inject
   public TodoRepository(DataSource ds) {
     this.context = DSL.using(new DefaultConfiguration().derive(ds));
-
-    Predicate<Field<?>> isId = f -> f.getName().toLowerCase().equals("id");
-    Predicate<Field<?>> isNotId = isId.negate();
-
-    ImmutableMap.Builder<String, Field<?>> builder = ImmutableMap.builder();
-    Stream.of(TODO.fields()).filter(isNotId)
-      .forEach(f ->
-        builder.put(f.getName().toLowerCase(), f)
-      );
-
-    this.fields = builder.build();
   }
 
   public Promise<List<Todo>> getAll() {
@@ -60,35 +43,13 @@ public class TodoRepository {
       .map(() -> todoRecord.into(Todo.class));
   }
 
-  class FieldEntry {
-    final Field field;
-    final String key;
-    final Object value;
+  public Promise<Todo> update(Map<String, Object> todo) {
+    TodoRecord record = context.newRecord(TODO, todo);
 
-    FieldEntry(Field field, String key, Object value) {
-      this.field = field;
-      this.key = key;
-      this.value = value;
-    }
-  }
-
-  private FieldEntry getField(Map.Entry<String, Object> entry) {
-    Field field = fields.get(entry.getKey().toLowerCase());
-    return field == null ? null : new FieldEntry(field, entry.getKey(), entry.getValue());
-  }
-
-  public Promise<Todo> update(Long id, Map<String, Object> map) {
-    Map<Field<?>, Object> fields = Maps.newHashMap();
-    map.entrySet().stream()
-      .map(this::getField)
-      .filter(Objects::nonNull)
-      .forEach(f -> fields.put(f.field, f.value));
-
-    UpdateConditionStep<TodoRecord> update = context.update(TODO)
-      .set(fields)
-      .where(TODO.ID.eq(id));
-
-    return Blocking.get(update::execute).flatMap(i -> getById(id));
+    return Blocking
+      .get(() -> context.executeUpdate(record))
+      .wiretap(count -> record.refresh())
+      .map(i -> record.into(Todo.class));
   }
 
   public Operation delete(Long id) {
